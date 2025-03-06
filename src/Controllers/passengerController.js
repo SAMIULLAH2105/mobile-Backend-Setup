@@ -175,4 +175,52 @@ const loginPassenger = asyncHandler(async (req, res) => {
   );
 });
 
-export { registerPassenger, changePassword, loginPassenger };
+const forgotPassword= asyncHandler(async(req,res)=>{
+  const {email}=req.body
+  if (!email || !password) {
+    throw new ApiError(400, "Please provide both email and password fields");
+  }
+
+  const userResult = await pool.query(
+    'SELECT * FROM "passengers" WHERE email=$1',
+    [email]
+  );
+  if (userResult.rows.length == 0) {
+    throw new ApiError(400, "User not registered");
+  }
+  const user = userResult.rows[0];
+
+  // Generate Reset Token (valid for 1 hour)
+  const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+  // Save token in the database
+  await pool.query('UPDATE "passengers" SET reset_token=$1 WHERE email=$2', [resetToken, email]);
+// Reset link
+const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+// Send email
+const transporter = nodemailer.createTransport({
+  service: "Gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const mailOptions = {
+  from: process.env.EMAIL_USER,
+  to: email,
+  subject: "Password Reset Request",
+  html: `<p>You requested a password reset. Click <a href="${resetLink}">here</a> to reset your password. This link is valid for 1 hour.</p>`,
+};
+
+try {
+  await transporter.sendMail(mailOptions);
+  res.json({ message: "Password reset link sent to your email" });
+} catch (error) {
+  console.error("Error sending email:", error);
+  throw new ApiError(500, "Email could not be sent");
+}
+});
+
+export { registerPassenger, changePassword, loginPassenger ,forgotPassword};
