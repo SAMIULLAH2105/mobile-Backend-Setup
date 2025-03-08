@@ -5,6 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer"; 
 
 // Register a new passenger
 const registerPassenger = asyncHandler(async (req, res) => {
@@ -80,7 +81,7 @@ const changePassword = asyncHandler(async (req, res) => {
     [email]
   );
   if (userResult.rows.length === 0) {
-    new ApiResponse(404, null, "User not found");
+    throw new ApiError(404, "User not found");
   }
 
   const user = userResult.rows[0];
@@ -175,52 +176,84 @@ const loginPassenger = asyncHandler(async (req, res) => {
   );
 });
 
-const forgotPassword= asyncHandler(async(req,res)=>{
-  const {email}=req.body
-  if (!email || !password) {
-    throw new ApiError(400, "Please provide both email and password fields");
+const forgotPasswordOTP = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    throw new ApiError(400, "Please provide an email");
   }
 
-  const userResult = await pool.query(
-    'SELECT * FROM "passengers" WHERE email=$1',
-    [email]
-  );
-  if (userResult.rows.length == 0) {
+  // Check if user exists
+  const userResult = await pool.query('SELECT * FROM "passengers" WHERE email=$1', [email]);
+  if (userResult.rows.length === 0) {
     throw new ApiError(400, "User not registered");
   }
-  const user = userResult.rows[0];
 
-  // Generate Reset Token (valid for 1 hour)
-  const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  // Generate a 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString(); 
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // OTP valid for 15 minutes
 
-  // Save token in the database
-  await pool.query('UPDATE "passengers" SET reset_token=$1 WHERE email=$2', [resetToken, email]);
-// Reset link
-const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+  // Save OTP and expiration in the database
+  await pool.query(
+    'UPDATE "passengers" SET otp=$1, otp_expires_at=$2 WHERE email=$3',
+    [otp, expiresAt, email]
+  );
 
-// Send email
-const transporter = nodemailer.createTransport({
-  service: "Gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+  // Email configuration
+  const transporter = nodemailer.createTransport({
+    service: "Gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Password Reset OTP",
+    html: `<p>Your password reset OTP is: <b>${otp}</b></p>
+           <p>This OTP is valid for 15 minutes.</p>`,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.json({ message: "OTP sent to your email" });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw new ApiError(500, "Email could not be sent");
+  }
 });
+const resetPasswordWithOtp=asyncHandler(async(req,res)=>{
+  const {email,newPassword,otp} = req.body;
+  if (!email||!newPassword||!otp){
+    throw new ApiError(400,"Please provide all fields")
+  }
+  const user= (await pool.query('SELECT * from "passengers" WHERE email=$1',[email])).rows[0];
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
 
-const mailOptions = {
-  from: process.env.EMAIL_USER,
-  to: email,
-  subject: "Password Reset Request",
-  html: `<p>You requested a password reset. Click <a href="${resetLink}">here</a> to reset your password. This link is valid for 1 hour.</p>`,
-};
+  
+  if (user.otp !== otp || user.otp_expires_at < new Date()) {
+    throw new ApiError(400, "Invalid OTP");}
 
-try {
-  await transporter.sendMail(mailOptions);
-  res.json({ message: "Password reset link sent to your email" });
-} catch (error) {
-  console.error("Error sending email:", error);
-  throw new ApiError(500, "Email could not be sent");
-}
+  
+
+  // Step 3: Hash new password
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  // Step 4: Update password in database
+  await pool.query("UPDATE passengers SET password = $1 WHERE email = $2", [
+    hashedPassword,
+    email,
+  ]);
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, "Password Reset Successfully"));
+
+  
+
+
 });
-
-export { registerPassenger, changePassword, loginPassenger ,forgotPassword};
+export { registerPassenger, changePassword, loginPassenger ,forgotPasswordOTP,resetPasswordWithOtp};
