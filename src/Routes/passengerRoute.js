@@ -1,7 +1,7 @@
 import express from "express";
 import { upload } from "../Middlewares/multer.middleware.js";
 import { registerPassenger, changePassword, loginPassenger } from "../Controllers/passengerController.js"; // Use `import` instead of `require`
-
+import { forgotPassword } from "../Controllers/passengerController.js";
 const router = express.Router();
 
 // router.post("/register",upload.single("profile_picture"), registerPassenger);
