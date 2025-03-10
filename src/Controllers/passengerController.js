@@ -181,7 +181,10 @@ const logOutPasenger = asyncHandler(async (req, res) => {
 
   try {
     // Remove refreshToken from the users table
-    await pool.query("UPDATE passengers SET refreshtoken = NULL WHERE passenger_id = $1", [req.user.passenger_id]);
+    await pool.query(
+      "UPDATE passengers SET refreshtoken = NULL WHERE passenger_id = $1",
+      [req.user.passenger_id]
+    );
 
     const options = {
       httpOnly: true,
@@ -196,7 +199,9 @@ const logOutPasenger = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, {}, "User Logged Out"));
   } catch (error) {
     console.error("Logout Error:", error);
-    return res.status(500).json(new ApiResponse(500, {}, "Internal Server Error"));
+    return res
+      .status(500)
+      .json(new ApiResponse(500, {}, "Internal Server Error"));
   }
 });
 const getPassengerById = asyncHandler(async (req, res) => {
@@ -225,20 +230,32 @@ const updatePassengerDeatails = asyncHandler(async (req, res) => {
   let query = 'UPDATE "passengers" SET ';
 
   if (address) {
-    fieldsToUpdate.push('address=$' + (values.length + 1));
+    fieldsToUpdate.push("address=$" + (values.length + 1));
     values.push(address);
   }
   if (phone) {
-    fieldsToUpdate.push('phone=$' + (values.length + 1));
+    fieldsToUpdate.push("phone=$" + (values.length + 1));
     values.push(phone);
   }
 
-  query += fieldsToUpdate.join(", ") + " WHERE passenger_id=$" + (values.length + 1) + " RETURNING *";
+  query +=
+    fieldsToUpdate.join(", ") +
+    " WHERE passenger_id=$" +
+    (values.length + 1) +
+    " RETURNING *";
   values.push(passenger_id);
 
   const updatedPassenger = await pool.query(query, values);
 
-  res.status(200).json(new ApiResponse(200, updatedPassenger.rows[0], "Passenger details updated successfully"));
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        updatedPassenger.rows[0],
+        "Passenger details updated successfully"
+      )
+    );
 });
 
 const deletePassengerAccount = asyncHandler(async (req, res) => {
@@ -268,5 +285,5 @@ export {
   getPassengerById,
   updatePassengerDeatails,
   logOutPasenger,
-  deletePassengerAccount
+  deletePassengerAccount,
 };
