@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import passengerRoutes from "./Routes/passengerRoute.js";
+import stationRoutes from "./Routes/stationRoutes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -12,8 +13,12 @@ app.use(
   })
 );
 
-app.use(cookieParser());
+app.use(cookieParser({
+  sameSite: "none",
+  secure: true,
+}));
 app.use("/api/passengers", passengerRoutes);
+app.use("/api/station", stationRoutes);
 
 const PORT = 5000;
 app.listen(PORT, () => {

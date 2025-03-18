@@ -25,10 +25,9 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
       [decodedToken?.id]
     );
     // console.log(result);
-    
+
     const passenger = result.rows[0];
     console.log(passenger);
-    
 
     if (!passenger) {
       throw new ApiError(401, "Invalid access token");
@@ -40,6 +39,13 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, error?.message || "Invalid access Token ");
   }
 });
+
+export const adminAuthMiddleware = (req, res, next) => {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ message: "Access denied. Admins only." });
+  }
+  next();
+};
 
 /*
 jwt.verify() it will decode the token and verify its signature against the provided secret. If the verification is successful, it returns the decoded payload of the token.
