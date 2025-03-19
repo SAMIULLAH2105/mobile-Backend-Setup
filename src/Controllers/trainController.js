@@ -69,4 +69,11 @@ const deleteTrain = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, null, "Train deleted successfully"));
 });
 
-export { addTrain, updateTrain, deleteTrain };
+const getAllTrains=asyncHandler(async(req,res)=>{
+ const allTrains= await pool.query("SELECT *  FROM trains ");
+ 
+ res.status(200).json(new ApiResponse(200,allTrains.rows,"All Trains Fetched"))
+
+})
+
+export { addTrain, updateTrain, deleteTrain,getAllTrains };
