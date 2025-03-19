@@ -198,6 +198,8 @@ const forgotPasswordOTP = asyncHandler(async (req, res) => {
     [otp, expiresAt, email]
   );
 
+  
+
   // Email configuration
   const transporter = nodemailer.createTransport({
     service: "Gmail",
@@ -223,6 +225,8 @@ const forgotPasswordOTP = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Email could not be sent");
   }
 });
+
+
 const resetPasswordWithOtp=asyncHandler(async(req,res)=>{
   const {email,newPassword,otp} = req.body;
   if (!email||!newPassword||!otp){
@@ -248,6 +252,16 @@ const resetPasswordWithOtp=asyncHandler(async(req,res)=>{
     email,
   ]);
 
+  await pool.query("UPDATE passengers SET password = $1 WHERE email = $2", [
+    hashedPassword,
+    email,
+  ]);
+  await pool.query("  UPDATE users SET otp = NULL,otp_expires_at=NULL WHERE email = $1", [
+  
+    email,
+  ]);
+
+
   return res
     .status(201)
     .json(new ApiResponse(200, "Password Reset Successfully"));
@@ -256,4 +270,110 @@ const resetPasswordWithOtp=asyncHandler(async(req,res)=>{
 
 
 });
-export { registerPassenger, changePassword, loginPassenger ,forgotPasswordOTP,resetPasswordWithOtp};
+const logOutPasenger = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user.passenger_id) {
+    return res.status(401).json(new ApiResponse(401, {}, "Unauthorized"));
+  }
+
+  try {
+    // Remove refreshToken from the users table
+    await pool.query(
+      "UPDATE passengers SET refreshtoken = NULL WHERE passenger_id = $1",
+      [req.user.passenger_id]
+    );
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    };
+
+    return res
+      .status(200)
+      .clearCookie("accessToken", options)
+      .clearCookie("refreshToken", options)
+      .json(new ApiResponse(200, {}, "User Logged Out"));
+  } catch (error) {
+    console.error("Logout Error:", error);
+    return res
+      .status(500)
+      .json(new ApiResponse(500, {}, "Internal Server Error"));
+  }
+});
+const getPassengerById = asyncHandler(async (req, res) => {
+  const { passenger_id } = req.user;
+  const user = await pool.query(
+    'SELECT * FROM "passengers" WHERE passenger_id=$1',
+    [passenger_id]
+  );
+  if (user.rows.length === 0) {
+    throw new ApiError(404, "User not found");
+  }
+  res.status(200).json(new ApiResponse(200, user.rows[0]));
+});
+
+const updatePassengerDeatails = asyncHandler(async (req, res) => {
+  const { address, phone } = req.body;
+  const { passenger_id } = req.user;
+
+  if (!address && !phone) {
+    throw new ApiError(400, "Please provide at least one field to update");
+  }
+
+  // Dynamically build update query based on provided fields
+  const fieldsToUpdate = [];
+  const values = [];
+  let query = 'UPDATE "passengers" SET ';
+
+  if (address) {
+    fieldsToUpdate.push("address=$" + (values.length + 1));
+    values.push(address);
+  }
+  if (phone) {
+    fieldsToUpdate.push("phone=$" + (values.length + 1));
+    values.push(phone);
+  }
+
+  query +=
+    fieldsToUpdate.join(", ") +
+    " WHERE passenger_id=$" +
+    (values.length + 1) +
+    " RETURNING *";
+  values.push(passenger_id);
+
+  const updatedPassenger = await pool.query(query, values);
+
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        updatedPassenger.rows[0],
+        "Passenger details updated successfully"
+      )
+    );
+});
+
+const deletePassengerAccount = asyncHandler(async (req, res) => {
+  const { passenger_id } = req.user;
+
+  const deletedPassenger = await pool.query(
+    'DELETE FROM "passengers" WHERE passenger_id=$1 RETURNING *',
+    [passenger_id]
+  );
+
+  if (deletedPassenger.rowCount === 0) {
+    throw new ApiError(404, "Passenger not found");
+  }
+
+  // Clear authentication cookies
+  res
+    .clearCookie("accessToken", { httpOnly: true, secure: true })
+    .clearCookie("refreshToken", { httpOnly: true, secure: true })
+    .status(200)
+    .json(new ApiResponse(200, {}, "Passenger account deleted successfully"));
+});
+export { registerPassenger, changePassword, loginPassenger ,forgotPasswordOTP,resetPasswordWithOtp,getPassengerById,
+  updatePassengerDeatails,
+  logOutPasenger,
+  deletePassengerAccount,};
