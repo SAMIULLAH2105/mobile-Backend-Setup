@@ -3,8 +3,6 @@ import pool from "../config/db.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import jwt from "jsonwebtoken";
 
 const addStation = asyncHandler(async (req, res) => {
   const { name, status, city, situatedAt, province } = req.body;
