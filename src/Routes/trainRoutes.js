@@ -3,7 +3,7 @@ import {
   verifyJWT,
   adminAuthMiddleware,
 } from "../Middlewares/auth.middleware.js";
-import {addTrain,deleteTrain,updateTrain} from "../Controllers/trainController.js"
+import {addTrain,deleteTrain,updateTrain,getAllTrains} from "../Controllers/trainController.js"
 
 const router = express.Router();
 

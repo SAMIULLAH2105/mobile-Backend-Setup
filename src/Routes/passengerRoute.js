@@ -1,6 +1,6 @@
 import express from "express";
 import { upload } from "../Middlewares/multer.middleware.js";
-import { registerPassenger, changePassword, loginPassenger,forgotPasswordOTP,resetPasswordWithOtp} from "../Controllers/passengerController.js"; // Use `import` instead of `require`
+
 import {
   registerPassenger,
   changePassword,
@@ -9,6 +9,7 @@ import {
   updatePassengerDeatails,
   logOutPasenger,
   deletePassengerAccount,
+  forgotPasswordOTP,resetPasswordWithOtp
 } from "../Controllers/passengerController.js"; // Use `import` instead of `require`
 import { verifyJWT } from "../Middlewares/auth.middleware.js";
 
