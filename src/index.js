@@ -22,7 +22,13 @@ app.use("/api/passengers", passengerRoutes);
 app.use("/api/station", stationRoutes);
 app.use("/api/train", trainRoutes);
 
-const PORT = 4000;
+
+app.get("/", (req, res) => {
+  res.send("Backend is running!");
+});
+
+const PORT = 5000;
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
