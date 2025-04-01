@@ -69,4 +69,31 @@ const deleteTrain = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, null, "Train deleted successfully"));
 });
 
-export { addTrain, updateTrain, deleteTrain };
+const getAllTrains=asyncHandler(async(req,res)=>{
+ const allTrains= await pool.query(`SELECT 
+    t.*, 
+    s1.station_name AS source_station_name, 
+    s2.station_name AS destination_station_name
+FROM trains t
+LEFT JOIN stations s1 ON t.source_station_id = s1.station_id
+LEFT JOIN stations s2 ON t.destination_station_id = s2.station_id`)
+ 
+
+const filteredTrains = allTrains.rows.map(({ source_station_id, destination_station_id, ...rest }) => rest);
+ res.status(200).json(new ApiResponse(200,filteredTrains,"All Trains Fetched"))
+
+
+ //traditional syntax
+//  const filteredTrains = allTrains.rows.map(function (train) {
+//   const { source_station_id, destination_station_id, ...rest } = train;
+//   return rest;
+// });
+
+//arrow syntax
+// const filteredTrains = allTrains.rows.map(train => {
+//   const { source_station_id, destination_station_id, ...rest } = train;
+//   return rest;
+// });
+})
+
+export { addTrain, updateTrain, deleteTrain,getAllTrains };
