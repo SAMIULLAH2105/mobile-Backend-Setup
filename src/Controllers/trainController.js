@@ -162,8 +162,7 @@ const insertTrainStops = asyncHandler(async (req, res) => {
       throw new ApiError(404, `Station with ID ${station_id} not found`);
     }
   }
-
-  
+    
   const insertStops = stops.map(stop => {
     const query = `
       INSERT INTO train_stops (train_id, station_id, arrival_time, departure_time, stop_number)
@@ -182,6 +181,35 @@ const insertTrainStops = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, insertedStops, "Train stops added successfully"));
 });
 
+const getTrainSchedule=asyncHandler(async (req, res) => {
+  const {id}=req.params;
+
+  const checkTrain=await pool.query("SELECT * FROM trains WHERE train_id=$1",[id]);
+  if(checkTrain.rowCount=0){
+    throw new ApiError(404,"Train not found")
+  }
+  const scheduleQuery = `SELECT ts.*, s.station_id, s.station_name, t.train_id, t.train_name
+  FROM train_stops ts
+  JOIN trains t ON t.train_id = ts.train_id
+  JOIN stations s ON ts.station_id = s.station_id
+  WHERE t.train_id = $1
+  ORDER BY ts.stop_number`;
 
 
-export { addTrain, updateTrain, deleteTrain, getAllTrains, insertTrainStops };
+  const schedule=await pool.query(scheduleQuery,[id]);
+
+  if(schedule.rowCount=0){
+    throw new ApiError(404,"No schedule found for this train")
+  }
+
+  /*The line essentially removes train_id and train_name from each object in the schedule.rows array, and retains only 
+  the other properties (station_id, arrival_time, departure_time, and stop_number). */
+  // This is done to avoid redundancy in the response, as train_id and train_name are already known from the context of the request.
+
+  const filteredSchedule=schedule.rows.map(({ train_id, train_name, ...rest }) => rest);
+
+  return res.status(200).json(new ApiResponse(200,filteredSchedule,"Train schedule fetched successfully"))
+})
+
+
+export { addTrain, updateTrain, deleteTrain, getAllTrains, insertTrainStops ,getTrainSchedule};

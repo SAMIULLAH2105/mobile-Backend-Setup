@@ -7,7 +7,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const addStation = asyncHandler(async (req, res) => {
   const { name, status, city, situatedAt, province } = req.body;
 
-  if (!name || !status || !city || !situatedAt || !province) {
+  if (!name || !status || !city || !province) {
     throw new ApiError(400, "Please fill all required fields");
   }
 
