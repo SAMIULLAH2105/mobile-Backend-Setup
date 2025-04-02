@@ -10,7 +10,7 @@ const addTrain = asyncHandler(async (req, res) => {
   if (!train_name || !train_type || !total_coaches || !status || !source_station_id || !destination_station_id) {
     throw new ApiError(400, "Please fill all required fields");
   }
-  if (source_station_id == destination_station_id){
+  if (source_station_id == destination_station_id) {
     throw new ApiError(400, "Souce and Destination cannot be same.");
   }
 
@@ -37,21 +37,58 @@ const updateTrain = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { train_name, train_type, total_coaches, status, source_station_id, destination_station_id } = req.body;
 
-  // Check if train exists
   const trainExists = await pool.query("SELECT * FROM trains WHERE train_id = $1", [id]);
   if (trainExists.rowCount === 0) {
     throw new ApiError(404, "Train not found");
   }
 
-  // Update train details
-  await pool.query(
-    `UPDATE trains SET train_name = $1, train_type = $2, total_coaches = $3, status = $4, 
-     source_station_id = $5, destination_station_id = $6 WHERE train_id = $7`,
-    [train_name, train_type, total_coaches, status, source_station_id, destination_station_id, id]
-  );
+  const fields = [];
+  const values = [];
+  let index = 1;
+
+  if (train_name) {
+    fields.push(`train_name = $${index}`);
+    values.push(train_name);
+    index++;
+  }
+  if (train_type) {
+    fields.push(`train_type = $${index}`);
+    values.push(train_type);
+    index++;
+  }
+  if (total_coaches) {
+    fields.push(`total_coaches = $${index}`);
+    values.push(total_coaches);
+    index++;
+  }
+  if (status) {
+    fields.push(`status = $${index}`);
+    values.push(status);
+    index++;
+  }
+  if (source_station_id) {
+    fields.push(`source_station_id = $${index}`);
+    values.push(source_station_id);
+    index++;
+  }
+  if (destination_station_id) {
+    fields.push(`destination_station_id = $${index}`);
+    values.push(destination_station_id);
+    index++;
+  }
+
+  if (fields.length === 0) {
+    throw new ApiError(400, "No fields provided for update");
+  }
+
+  values.push(id);
+  const query = `UPDATE trains SET ${fields.join(", ")} WHERE train_id = $${index}`;
+
+  await pool.query(query, values);
 
   res.status(200).json(new ApiResponse(200, null, "Train updated successfully"));
 });
+
 
 // Delete a Train
 const deleteTrain = asyncHandler(async (req, res) => {
@@ -69,31 +106,82 @@ const deleteTrain = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, null, "Train deleted successfully"));
 });
 
-const getAllTrains=asyncHandler(async(req,res)=>{
- const allTrains= await pool.query(`SELECT 
+const getAllTrains = asyncHandler(async (req, res) => {
+
+  const allTrainsQuery = await pool.query(`SELECT 
     t.*, 
     s1.station_name AS source_station_name, 
     s2.station_name AS destination_station_name
 FROM trains t
 LEFT JOIN stations s1 ON t.source_station_id = s1.station_id
 LEFT JOIN stations s2 ON t.destination_station_id = s2.station_id`)
- 
-
-const filteredTrains = allTrains.rows.map(({ source_station_id, destination_station_id, ...rest }) => rest);
- res.status(200).json(new ApiResponse(200,filteredTrains,"All Trains Fetched"))
 
 
- //traditional syntax
-//  const filteredTrains = allTrains.rows.map(function (train) {
-//   const { source_station_id, destination_station_id, ...rest } = train;
-//   return rest;
-// });
+  const filteredTrains = allTrainsQuery.rows.map(({ source_station_id, destination_station_id, ...rest }) => rest);
+  res.status(200).json(new ApiResponse(200, filteredTrains, "All Trains Fetched"))
 
-//arrow syntax
-// const filteredTrains = allTrains.rows.map(train => {
-//   const { source_station_id, destination_station_id, ...rest } = train;
-//   return rest;
-// });
+
+  //traditional syntax
+  //  const filteredTrains = allTrains.rows.map(function (train) {
+  //   const { source_station_id, destination_station_id, ...rest } = train;
+  //   return rest;
+  // });
+
+  //arrow syntax
+  // const filteredTrains = allTrains.rows.map(train => {
+  //   const { source_station_id, destination_station_id, ...rest } = train;
+  //   return rest;
+  // });
 })
 
-export { addTrain, updateTrain, deleteTrain,getAllTrains };
+
+const insertTrainStops = asyncHandler(async (req, res) => {
+  const { id } = req.params; 
+  if (!id) {
+    throw new ApiError(400, "Train ID is required");
+  }
+  const trainExists = await pool.query("SELECT * FROM trains WHERE train_id = $1", [id]);
+  if (trainExists.rowCount == 0) {
+    throw new ApiError(404, "Train not found");
+  }
+
+  const stops = req.body; 
+  if (!Array.isArray(stops) || stops.length === 0) {
+    throw new ApiError(400, "Please provide an array of stops");
+  }
+
+  // Validate each stop
+  for (const stop of stops) {
+    const { station_id, arrival_time, departure_time, stop_number } = stop;
+    if (!station_id || !arrival_time || !departure_time || !stop_number) {
+      throw new ApiError(400, "Each stop must have station id, arrival time, departure time, and stop number");
+    }
+
+    const stationExists = await pool.query("SELECT * FROM stations WHERE station_id = $1", [station_id]);
+    if (stationExists.rowCount == 0) {
+      throw new ApiError(404, `Station with ID ${station_id} not found`);
+    }
+  }
+
+  
+  const insertPromises = stops.map(stop => {
+    const query = `
+      INSERT INTO train_stops (train_id, station_id, arrival_time, departure_time, stop_number)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *`;
+
+    const queryParams = [id, stop.station_id, stop.arrival_time, stop.departure_time, stop.stop_number];
+    return pool.query(query, queryParams);
+  });
+
+  // Wait for all insert operations to complete
+  const results = await Promise.all(insertPromises);
+
+  // Gather all the inserted stop records
+  const insertedStops = results.map(result => result.rows[0]);
+  res.status(201).json(new ApiResponse(201, insertedStops, "Train stops added successfully"));
+});
+
+
+
+export { addTrain, updateTrain, deleteTrain, getAllTrains, insertTrainStops };

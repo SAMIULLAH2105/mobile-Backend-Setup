@@ -130,13 +130,13 @@ const loginPassenger = asyncHandler(async (req, res) => {
   }
 
   const accessToken = jwt.sign(
-    { id: checkIfUserIsRegistered.rows[0].user_id },
+    { id: checkIfUserIsRegistered.rows[0].passenger_id },
     process.env.ACCESS_TOKEN_SECRET,
     { expiresIn: "15m" }
   );
-
+ 
   const refreshToken = jwt.sign(
-    { id: checkIfUserIsRegistered.rows[0].user_id },
+    { id: checkIfUserIsRegistered.rows[0].passenger_id },
     process.env.REFRESH_TOKEN_SECRET,
     { expiresIn: "7d" }
   );
