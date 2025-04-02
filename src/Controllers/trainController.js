@@ -164,7 +164,7 @@ const insertTrainStops = asyncHandler(async (req, res) => {
   }
 
   
-  const insertPromises = stops.map(stop => {
+  const insertStops = stops.map(stop => {
     const query = `
       INSERT INTO train_stops (train_id, station_id, arrival_time, departure_time, stop_number)
       VALUES ($1, $2, $3, $4, $5)
@@ -175,7 +175,7 @@ const insertTrainStops = asyncHandler(async (req, res) => {
   });
 
   // Wait for all insert operations to complete
-  const results = await Promise.all(insertPromises);
+  const results = await Promise.all(insertStops);
 
   // Gather all the inserted stop records
   const insertedStops = results.map(result => result.rows[0]);
