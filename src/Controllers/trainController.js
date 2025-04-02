@@ -195,7 +195,6 @@ const getTrainSchedule=asyncHandler(async (req, res) => {
   WHERE t.train_id = $1
   ORDER BY ts.stop_number`;
 
-
   const schedule=await pool.query(scheduleQuery,[id]);
 
   if(schedule.rowCount=0){
@@ -210,6 +209,5 @@ const getTrainSchedule=asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200,filteredSchedule,"Train schedule fetched successfully"))
 })
-
 
 export { addTrain, updateTrain, deleteTrain, getAllTrains, insertTrainStops ,getTrainSchedule};

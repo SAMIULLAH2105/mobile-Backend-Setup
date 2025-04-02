@@ -87,7 +87,6 @@ const updateStation = asyncHandler(async (req, res) => {
 const deleteStation = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // Check if station exists
   const existingStation = await pool.query(
     `SELECT * FROM stations WHERE station_id = $1`,
     [id]
@@ -97,7 +96,6 @@ const deleteStation = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Station not found");
   }
 
-  // Delete station
   await pool.query(`DELETE FROM stations WHERE station_id  = $1`, [id]);
 
   res.status(200).json({ message: "Station deleted successfully" });

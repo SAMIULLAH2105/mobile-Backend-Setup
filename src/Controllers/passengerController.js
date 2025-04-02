@@ -373,6 +373,7 @@ const deletePassengerAccount = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, "Passenger account deleted successfully"));
 });
+
 export { registerPassenger, changePassword, loginPassenger ,forgotPasswordOTP,resetPasswordWithOtp,getPassengerById,
   updatePassengerDeatails,
   logOutPasenger,
