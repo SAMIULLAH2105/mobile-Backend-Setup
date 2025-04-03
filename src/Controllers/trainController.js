@@ -134,6 +134,7 @@ LEFT JOIN stations s2 ON t.destination_station_id = s2.station_id`)
   // });
 })
 
+//this is to insert train stops
 
 const insertTrainStops = asyncHandler(async (req, res) => {
   const { id } = req.params; 
@@ -181,6 +182,7 @@ const insertTrainStops = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, insertedStops, "Train stops added successfully"));
 });
 
+// this retrieves a train schedule
 const getTrainSchedule=asyncHandler(async (req, res) => {
   const {id}=req.params;
 
