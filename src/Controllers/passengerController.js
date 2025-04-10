@@ -96,9 +96,7 @@ const changePassword = asyncHandler(async (req, res) => {
 // Login a passenger
 const loginPassenger = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    throw new ApiError(400, "Please provide both email and password fields");
-  }
+
 
   const checkIfUserIsRegistered = await pool.query(
     'SELECT * FROM "passengers" WHERE email=$1',
@@ -165,9 +163,6 @@ const loginPassenger = asyncHandler(async (req, res) => {
 
 const forgotPasswordOTP = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  if (!email) {
-    throw new ApiError(400, "Please provide an email");
-  }
 
   // Check if user exists
   const userResult = await pool.query('SELECT * FROM "passengers" WHERE email=$1', [email]);
