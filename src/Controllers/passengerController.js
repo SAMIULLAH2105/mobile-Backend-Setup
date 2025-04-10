@@ -11,19 +11,6 @@ import nodemailer from "nodemailer";
 const registerPassenger = asyncHandler(async (req, res) => {
   const { name, email, phone, cnic, gender, dob, address, password } = req.body;
 
-  if (
-    !name ||
-    !email ||
-    !password ||
-    !cnic ||
-    !phone ||
-    !address ||
-    !gender ||
-    !dob
-  ) {
-    throw new ApiError(400, "Please fill all required fields");
-  }
-
   if (password.length < 6) {
     throw new ApiError(400, "Password must be at least 6 characters long");
   }
