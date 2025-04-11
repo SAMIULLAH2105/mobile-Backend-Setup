@@ -11,10 +11,6 @@ import nodemailer from "nodemailer";
 const registerPassenger = asyncHandler(async (req, res) => {
   const { name, email, phone, cnic, gender, dob, address, password } = req.body;
 
-  if (password.length < 6) {
-    throw new ApiError(400, "Password must be at least 6 characters long");
-  }
-
   const ifUserExists = await pool.query(
     'SELECT * FROM "passengers" WHERE email=$1',
     [email]
