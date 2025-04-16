@@ -319,10 +319,8 @@ const getTrainSchedule = asyncHandler(async (req, res) => {
   );
 });
 
-
-
 const makeTrainSchedule = asyncHandler(async (req, res) => {
-  const { train_id, travel_date, departure_time, arrival_time, status,travel_duration } = req.body;
+  const { train_id, travel_date, departure_time, arrival_time, status, travel_duration } = req.body;
   if (!train_id || !travel_date || !departure_time || !arrival_time || !status) {
     throw new ApiError(400, "Please fill all required fields");
   }
@@ -335,9 +333,9 @@ const makeTrainSchedule = asyncHandler(async (req, res) => {
   }
   const trainExists = await pool.query('SELECT train_id FROM trains WHERE train_id = $1', [train_id]);
 
-  const checkIfScheduleExists=await pool.query(`SELECT FROM train_schedule WHERE train_id=$1`);
-  if(checkIfScheduleExists.rowCount>0){
-    throw new ApiError(400,"Schedule for this train already exist")
+  const checkIfScheduleExists = await pool.query(`SELECT FROM train_schedule WHERE train_id=$1`);
+  if (checkIfScheduleExists.rowCount > 0) {
+    throw new ApiError(400, "Schedule for this train already exist")
   }
 
   if (trainExists.rowCount === 0) {
@@ -345,7 +343,7 @@ const makeTrainSchedule = asyncHandler(async (req, res) => {
   }
   const insertQuery = `INSERT INTO train_schedule (train_id, travel_date, departure_time, arrival_time,status,travel_duration)
    VALUES ($1, $2, $3, $4,$5,$6) RETURNING *`;
-  const values = [train_id, travel_date, departure_time, arrival_time, status,travel_duration];
+  const values = [train_id, travel_date, departure_time, arrival_time, status, travel_duration];
 
   const result = await pool.query(insertQuery, values);
 
@@ -355,7 +353,7 @@ const makeTrainSchedule = asyncHandler(async (req, res) => {
 
 const updateTrainSchedule = asyncHandler(async (req, res) => {
   const { id: schedule_id } = req.params;
-  const { travel_date, departure_time, arrival_time, status,travel_duration } = req.body;
+  const { travel_date, departure_time, arrival_time, status, travel_duration } = req.body;
 
   if (!travel_date && !departure_time && !arrival_time && !status && !travel_duration) {
     throw new ApiError(400, "At least one field must be provided for update");
@@ -390,7 +388,7 @@ const updateTrainSchedule = asyncHandler(async (req, res) => {
     fields.push(`status = $${idx++}`);
     values.push(status);
   }
-  if(travel_duration){
+  if (travel_duration) {
     fields.push(`travel_duration= $${idx++}`);
     values.push(travel_duration)
   }
@@ -410,7 +408,7 @@ const updateTrainSchedule = asyncHandler(async (req, res) => {
   }
 
   return res.status(200).json(new ApiResponse(200, result.rows[0], "Train schedule updated successfully"));
-  
+
 });
 
 // This will give trains will Source, Destination, and Date filters
@@ -472,14 +470,13 @@ const getTrainBySourceDestinationAndDate = asyncHandler(async (req, res) => {
     AND s_dest.station_name = $2
     AND src_stop.stop_number < dest_stop.stop_number
     AND ts.travel_date = $3
-`;
+  `;
 
-const { rows } = await pool.query(query, [
-  source_station,
-  destination_station,
-  parsedDate,
-]);
-
+  const { rows } = await pool.query(query, [
+    source_station,
+    destination_station,
+    parsedDate,
+  ]);
 
   if (rows.length === 0) {
     return res.status(303).json(
@@ -509,5 +506,5 @@ export {
   makeTrainSchedule,
   updateTrainSchedule,
   getTrainSchedule,
-  getTrainBySourceDestinationAndDate,
+  getTrainBySourceDestinationAndDate
 };
