@@ -253,50 +253,171 @@ const insertTrainStops = asyncHandler(async (req, res) => {
 const getTrainSchedule = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  const trainInfoQuery = `SELECT train_id, train_name FROM trains WHERE train_id = $1`;
+  const trainInfoResult = await pool.query(trainInfoQuery, [id]);
+
+  // Check if train exists
   const checkTrain = await pool.query(
-    "SELECT * FROM trains WHERE train_id=$1",
+    "SELECT * FROM trains WHERE train_id = $1",
     [id]
   );
-  if ((checkTrain.rowCount = 0)) {
+
+  if (checkTrain.rowCount === 0) {
     throw new ApiError(404, "Train not found");
   }
-  const scheduleQuery = `SELECT ts.*, s.station_id, s.station_name, t.train_id, t.train_name
-  FROM train_stops ts
-  JOIN trains t ON t.train_id = ts.train_id
-  JOIN stations s ON ts.station_id = s.station_id
-  WHERE t.train_id = $1
-  ORDER BY ts.stop_number`;
+
+  const scheduleQuery = `
+        SELECT 
+        s.station_name,
+        NULL AS arrival_time,
+        ts.departure_time,
+        0 AS stop_number
+      FROM train_schedule ts
+      JOIN trains t ON ts.train_id = t.train_id
+      JOIN stations s ON s.station_id = t.source_station_id
+      WHERE t.train_id = $1
+
+      UNION
+
+      SELECT 
+        s.station_name,
+        ts1.arrival_time,
+        ts1.departure_time,
+        ts1.stop_number
+      FROM train_stops ts1
+      JOIN stations s ON s.station_id = ts1.station_id
+      WHERE ts1.train_id = $1
+
+      UNION
+
+      SELECT 
+        s.station_name,
+        ts.arrival_time,
+        NULL AS departure_time,
+        999 AS stop_number
+      FROM train_schedule ts
+      JOIN trains t ON ts.train_id = t.train_id
+      JOIN stations s ON s.station_id = t.destination_station_id
+      WHERE t.train_id = $1
+
+      ORDER BY stop_number;
+          
+  `;
 
   const schedule = await pool.query(scheduleQuery, [id]);
 
-  if ((schedule.rowCount = 0)) {
+  if (schedule.rowCount === 0) {
     throw new ApiError(404, "No schedule found for this train");
   }
 
-  /*The line essentially removes train_id and train_name from each object in the schedule.rows array, and retains only 
-  the other properties (station_id, arrival_time, departure_time, and stop_number). */
-  // This is done to avoid redundancy in the response, as train_id and train_name are already known from the context of the request.
-
-  const filteredSchedule = schedule.rows.map(
-    ({ train_id, train_name, ...rest }) => rest
+  return res.status(200).json(
+    new ApiResponse(200, {
+      train_id: trainInfoResult.rows[0].train_id,
+      train_name: trainInfoResult.rows[0].train_name,
+      stops: schedule.rows
+    }, "Train schedule fetched successfully")
   );
+});
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        filteredSchedule,
-        "Train schedule fetched successfully"
-      )
-    );
+
+
+const makeTrainSchedule = asyncHandler(async (req, res) => {
+  const { train_id, travel_date, departure_time, arrival_time, status,travel_duration } = req.body;
+  if (!train_id || !travel_date || !departure_time || !arrival_time || !status) {
+    throw new ApiError(400, "Please fill all required fields");
+  }
+  const travelDateObj = new Date(travel_date);  // this ocnverts travel_date into a JS date object
+  const today = new Date();  //It ensures you're comparing just the dates, not the time of day.
+  today.setHours(0, 0, 0, 0);
+
+  if (travelDateObj <= today) {
+    throw new ApiError(400, "Travel date must be in the future");
+  }
+  const trainExists = await pool.query('SELECT train_id FROM trains WHERE train_id = $1', [train_id]);
+
+  const checkIfScheduleExists=await pool.query(`SELECT FROM train_schedule WHERE train_id=$1`);
+  if(checkIfScheduleExists.rowCount>0){
+    throw new ApiError(400,"Schedule for this train already exist")
+  }
+
+  if (trainExists.rowCount === 0) {
+    throw new ApiError(404, "Train not found");
+  }
+  const insertQuery = `INSERT INTO train_schedule (train_id, travel_date, departure_time, arrival_time,status,travel_duration)
+   VALUES ($1, $2, $3, $4,$5,$6) RETURNING *`;
+  const values = [train_id, travel_date, departure_time, arrival_time, status,travel_duration];
+
+  const result = await pool.query(insertQuery, values);
+
+  return res.status(201).json(new ApiResponse(201, result.rows[0], "Train schedule created successfully"));
+
+})
+
+const updateTrainSchedule = asyncHandler(async (req, res) => {
+  const { id: schedule_id } = req.params;
+  const { travel_date, departure_time, arrival_time, status,travel_duration } = req.body;
+
+  if (!travel_date && !departure_time && !arrival_time && !status && !travel_duration) {
+    throw new ApiError(400, "At least one field must be provided for update");
+  }
+
+  const fields = [];
+  const values = [];
+  let idx = 1;
+
+  if (travel_date) {
+    const travelDateObj = new Date(travel_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (travelDateObj <= today) {
+      throw new ApiError(400, "Travel date must be in the future");
+    }
+    fields.push(`travel_date = $${idx++}`);
+    values.push(travel_date);
+  }
+
+  if (departure_time) {
+    fields.push(`departure_time = $${idx++}`);
+    values.push(departure_time);
+  }
+
+  if (arrival_time) {
+    fields.push(`arrival_time = $${idx++}`);
+    values.push(arrival_time);
+  }
+
+  if (status) {
+    fields.push(`status = $${idx++}`);
+    values.push(status);
+  }
+  if(travel_duration){
+    fields.push(`travel_duration= $${idx++}`);
+    values.push(travel_duration)
+  }
+
+  values.push(schedule_id); // Final placeholder for WHERE clause
+
+  const updateQuery = `
+    UPDATE train_schedule 
+    SET ${fields.join(', ')} 
+    WHERE schedule_id = $${idx} 
+    RETURNING *`;
+
+  const result = await pool.query(updateQuery, values);
+
+  if (result.rowCount === 0) {
+    throw new ApiError(404, "Train schedule not found");
+  }
+
+  return res.status(200).json(new ApiResponse(200, result.rows[0], "Train schedule updated successfully"));
+  
 });
 
 // This will give trains will Source, Destination, and Date filters
 const getTrainBySourceDestinationAndDate = asyncHandler(async (req, res) => {
-  const { sourceId, destinationId, date } = req.params;
+  const { source_station, destination_station, date } = req.body;
 
-  if (!sourceId || !destinationId || !date) {
+  if (!source_station || !destination_station || !date) {
     throw new ApiError(400, "Please provide sourceId, destinationId, and date");
   }
 
@@ -310,12 +431,12 @@ const getTrainBySourceDestinationAndDate = asyncHandler(async (req, res) => {
 
   // Check if source and destination stations exist
   const sourceExists = await pool.query(
-    "SELECT * FROM stations WHERE station_id = $1",
-    [sourceId]
+    "SELECT * FROM stations WHERE station_name = $1",
+    [source_station]
   );
   const destinationExists = await pool.query(
-    "SELECT * FROM stations WHERE station_id = $1",
-    [destinationId]
+    "SELECT * FROM stations WHERE station_name = $1",
+    [destination_station]
   );
   if (sourceExists.rowCount === 0 || destinationExists.rowCount === 0) {
     throw new ApiError(404, "Source or destination station not found");
@@ -327,34 +448,38 @@ const getTrainBySourceDestinationAndDate = asyncHandler(async (req, res) => {
   // Reset time for the parsedDate
   parsedDate.setHours(0, 0, 0, 0);
 
-  // Compare the dates
   if (parsedDate < today) {
     throw new ApiError(400, "Search date cannot be before today");
   }
 
   // Query to fetch trains
-  const query = `
-  SELECT 
-    t.train_id, 
-    t.train_name, 
-    t.train_type, 
-    t.total_coaches, 
-    t.status, 
-    ts.departure_time, 
-    ts.arrival_time
-  FROM 
-    trains t
-  JOIN 
-    train_schedule ts ON t.train_id = ts.train_id
-  WHERE 
-    t.source_station_id = $1 AND t.destination_station_id = $2 AND ts.travel_date = $3
+  const query = `SELECT
+  t.train_id,
+  t.train_name,
+  t.train_type,
+  s_source.station_name AS source_station,
+  s_dest.station_name AS destination_station,
+  ts.travel_date,
+  src_stop.departure_time AS departure_time,
+  dest_stop.arrival_time AS arrival_time
+  FROM trains t
+  INNER JOIN train_schedule ts ON t.train_id = ts.train_id
+  INNER JOIN train_stops src_stop ON t.train_id = src_stop.train_id
+  INNER JOIN train_stops dest_stop ON t.train_id = dest_stop.train_id
+  INNER JOIN stations s_source ON src_stop.station_id = s_source.station_id
+  INNER JOIN stations s_dest ON dest_stop.station_id = s_dest.station_id
+  WHERE s_source.station_name = $1
+    AND s_dest.station_name = $2
+    AND src_stop.stop_number < dest_stop.stop_number
+    AND ts.travel_date = $3
 `;
 
-  const { rows } = await pool.query(query, [
-    sourceId,
-    destinationId,
-    parsedDate, // Use parsedDate instead of the raw string date
-  ]);
+const { rows } = await pool.query(query, [
+  source_station,
+  destination_station,
+  parsedDate,
+]);
+
 
   if (rows.length === 0) {
     return res.status(303).json(
@@ -375,14 +500,14 @@ const getTrainBySourceDestinationAndDate = asyncHandler(async (req, res) => {
   );
 });
 
-
-
 export {
   addTrain,
   updateTrain,
   deleteTrain,
   getAllTrains,
   insertTrainStops,
+  makeTrainSchedule,
+  updateTrainSchedule,
   getTrainSchedule,
   getTrainBySourceDestinationAndDate,
 };

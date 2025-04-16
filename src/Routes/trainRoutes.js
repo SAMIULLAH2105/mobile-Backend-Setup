@@ -3,7 +3,8 @@ import {
   verifyJWT,
   adminAuthMiddleware,
 } from "../Middlewares/auth.middleware.js";
-import {addTrain,deleteTrain,updateTrain,getAllTrains,insertTrainStops, getTrainSchedule,getTrainBySourceDestinationAndDate} from "../Controllers/trainController.js"
+import {addTrain,deleteTrain,updateTrain,getAllTrains,insertTrainStops, getTrainSchedule,
+  makeTrainSchedule,updateTrainSchedule,getTrainBySourceDestinationAndDate} from "../Controllers/trainController.js"
 
 const router = express.Router();
 
@@ -13,7 +14,9 @@ router.delete("/:id",verifyJWT, adminAuthMiddleware, deleteTrain); // Delete sta
 router.get("/allTrains", getAllTrains);
 router.post("/:id/stops", verifyJWT, adminAuthMiddleware, insertTrainStops); // Insert train stops by train ID
 router.get("/:id",verifyJWT,getTrainSchedule);
-router.get("/getTrainByDate/:sourceId/:destinationId/:date", getTrainBySourceDestinationAndDate);
+router.post("/makeSchedule", verifyJWT, adminAuthMiddleware, makeTrainSchedule); // Make train schedule by train ID
+router.put("/updateSchedule/:id", verifyJWT, adminAuthMiddleware, updateTrainSchedule); // Update train schedule by ID
+router.post("/getTrainByDate",verifyJWT, getTrainBySourceDestinationAndDate);
 
 
 export default router;
