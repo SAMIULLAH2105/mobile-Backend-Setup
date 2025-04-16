@@ -3,6 +3,9 @@ import cors from "cors";
 import passengerRoutes from "./Routes/passengerRoute.js";
 import stationRoutes from "./Routes/stationRoutes.js";
 import trainRoutes from "./Routes/trainRoutes.js";
+import bookingRoutes from "./Routes/bookingRoutes.js";
+
+
 import cookieParser from "cookie-parser";
 
 const app = express();
@@ -18,10 +21,11 @@ app.use(cookieParser({
   sameSite: "none",
   secure: true,
 }));
+
 app.use("/api/passengers", passengerRoutes);
 app.use("/api/station", stationRoutes);
 app.use("/api/train", trainRoutes);
-
+app.use("/api/booking",bookingRoutes)
 
 app.get("/", (req, res) => {
   res.send("Backend is running!");

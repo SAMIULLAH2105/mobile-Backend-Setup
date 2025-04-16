@@ -3,8 +3,19 @@ import {
   verifyJWT,
   adminAuthMiddleware,
 } from "../Middlewares/auth.middleware.js";
-import {addTrain,deleteTrain,updateTrain,getAllTrains,insertTrainStops, getTrainSchedule,
-  makeTrainSchedule,updateTrainSchedule,getTrainBySourceDestinationAndDate} from "../Controllers/trainController.js"
+
+import {
+  addTrain,
+  deleteTrain,
+  updateTrain,
+  getAllTrains,
+  insertTrainStops, 
+  getTrainSchedule,
+  makeTrainSchedule,
+  updateTrainSchedule,
+  getTrainBySourceDestinationAndDate,
+} 
+from "../Controllers/trainController.js"
 
 const router = express.Router();
 
@@ -17,6 +28,5 @@ router.get("/:id",verifyJWT,getTrainSchedule);
 router.post("/makeSchedule", verifyJWT, adminAuthMiddleware, makeTrainSchedule); // Make train schedule by train ID
 router.put("/updateSchedule/:id", verifyJWT, adminAuthMiddleware, updateTrainSchedule); // Update train schedule by ID
 router.post("/getTrainByDate",verifyJWT, getTrainBySourceDestinationAndDate);
-
 
 export default router;
