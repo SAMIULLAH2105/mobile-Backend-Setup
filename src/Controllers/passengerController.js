@@ -98,7 +98,9 @@ const loginPassenger = asyncHandler(async (req, res) => {
     'SELECT * FROM "passengers" WHERE email=$1',
     [email]
   );
+
   if (checkIfUserIsRegistered.rows.length == 0) {
+    console.log("This is the error", checkIfUserIsRegistered.rows.length);
     throw new ApiError(400, "User not registered");
   }
 
@@ -107,7 +109,7 @@ const loginPassenger = asyncHandler(async (req, res) => {
     checkIfUserIsRegistered.rows[0].password
   );
   if (!checkPwd) {
-    throw new ApiError(400, "Passwords do not match");
+    throw new ApiError(400, "Email or password is incorrect");
   }
 
   const accessToken = jwt.sign(

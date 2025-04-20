@@ -10,11 +10,13 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: "http://localhost:3000", // Change based on frontend
-    credentials: true, // Allow credentials (cookies)
+    origin: "*", // Allow all origins
+    credentials: true,
   })
+  
 );
 
 app.use(cookieParser({
@@ -25,7 +27,25 @@ app.use(cookieParser({
 app.use("/api/passengers", passengerRoutes);
 app.use("/api/station", stationRoutes);
 app.use("/api/train", trainRoutes);
+<<<<<<< Updated upstream
 app.use("/api/booking",bookingRoutes)
+=======
+
+app.use((err, req, res, next) => {
+
+
+  const statuscode = err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+
+  res.send({
+    statuscode,
+    success: false,
+    message,
+    data : {}
+  });
+});
+
+>>>>>>> Stashed changes
 
 app.get("/", (req, res) => {
   res.send("Backend is running!");
@@ -36,3 +56,4 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
