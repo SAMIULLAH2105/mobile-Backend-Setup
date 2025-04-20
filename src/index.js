@@ -27,9 +27,7 @@ app.use(cookieParser({
 app.use("/api/passengers", passengerRoutes);
 app.use("/api/station", stationRoutes);
 app.use("/api/train", trainRoutes);
-<<<<<<< Updated upstream
 app.use("/api/booking",bookingRoutes)
-=======
 
 app.use((err, req, res, next) => {
 
@@ -45,7 +43,6 @@ app.use((err, req, res, next) => {
   });
 });
 
->>>>>>> Stashed changes
 
 app.get("/", (req, res) => {
   res.send("Backend is running!");
