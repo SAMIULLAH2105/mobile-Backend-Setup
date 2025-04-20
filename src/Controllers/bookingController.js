@@ -80,7 +80,6 @@ const findAvailableSeats = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, formattedResult, seatsFetched));
 });
 
-
 const bookTrainSeat = asyncHandler(async (req, res) => {
   // Extract the required data from the request body
   const {
@@ -89,7 +88,7 @@ const bookTrainSeat = asyncHandler(async (req, res) => {
     from_station_id,
     to_station_id,
     coach_type_id,
-    seat_id // Accept seat_id from user
+    seat_id, // Accept seat_id from user
   } = req.body;
 
   // 1. Get the Train Name from the trains table
@@ -147,7 +146,10 @@ const bookTrainSeat = asyncHandler(async (req, res) => {
   );
 
   if (seatRes.rowCount === 0) {
-    throw new ApiError(400, "Selected seat is not available or does not belong to the train"); // If seat is not available, throw error
+    throw new ApiError(
+      400,
+      "Selected seat is not available or does not belong to the train"
+    ); // If seat is not available, throw error
   }
 
   const selectedSeat = seatRes.rows[0]; // Get selected seat details
@@ -172,23 +174,55 @@ const bookTrainSeat = asyncHandler(async (req, res) => {
       selectedSeat.coach_id,
       departure_time,
       travel_date,
-      bookingDate
+      bookingDate,
     ]
   );
 
   // 8. Update the seat's availability to false since it's now booked
-  await pool.query(
-    `UPDATE seats SET is_available = false WHERE seat_id = $1`,
-    [selectedSeat.seat_id]
+  await pool.query(`UPDATE seats SET is_available = false WHERE seat_id = $1`, [
+    selectedSeat.seat_id,
+  ]);
+
+  const seatNumb_coachNum = await pool.query(
+    `SELECT 
+       s.seat_number,
+       c.coach_number
+     FROM seats s
+     JOIN coaches c ON s.coach_id = c.coach_id
+     WHERE s.seat_id = $1 AND c.coach_id = $2`,
+    [selectedSeat.seat_id, selectedSeat.coach_id]
+  );
+
+  const {
+    seat_id: _seatId, // renaming to avoid redeclaration
+    coach_id: _coachId,
+    ...bookingDataWithoutIds
+  } = bookingRes.rows[0];
+
+  return res.status(201).json(
+    new ApiResponse(
+      201,
+      {
+        ...bookingDataWithoutIds,
+        seat_number: seatNumb_coachNum.rows[0].seat_number,
+        coach_number: seatNumb_coachNum.rows[0].coach_number,
+      },
+      "Booking successful"
+    )
   );
 
   // Return the successful response with the booking details
-  return res
-    .status(201)
-    .json(new ApiResponse(201, bookingRes.rows[0], "Booking successful"));
+  return res.status(201).json(
+    new ApiResponse(
+      201,
+      {
+        ...bookingRes.rows[0],
+        seat_number: seatNumb_coachNum.rows[0].seat_number,
+        coach_number: seatNumb_coachNum.rows[0].coach_number,
+      },
+      "Booking successful"
+    )
+  );
 });
-
-
-
 
 export { findAvailableSeats, bookTrainSeat };
