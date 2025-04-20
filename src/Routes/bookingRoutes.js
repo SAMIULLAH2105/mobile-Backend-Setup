@@ -1,10 +1,14 @@
-import express from 'express'
+import express from "express";
 
-import { findAvailableSeats } from '../Controllers/bookingController.js';
-import { verifyJWT } from '../Middlewares/auth.middleware.js';
+import {
+  findAvailableSeats,
+  bookTrainSeat,
+} from "../Controllers/bookingController.js";
+import { verifyJWT } from "../Middlewares/auth.middleware.js";
 
-const bookingRoutes=express.Router();
+const bookingRoutes = express.Router();
 
-bookingRoutes.get('/getAvailableSeats/:id',verifyJWT,findAvailableSeats)
+bookingRoutes.get("/getAvailableSeats/:id", verifyJWT, findAvailableSeats);
+bookingRoutes.post("/seat", verifyJWT, bookTrainSeat);
 
 export default bookingRoutes;
